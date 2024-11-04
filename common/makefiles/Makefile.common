@@ -1,0 +1,147 @@
+#################################
+# Author: Sravanthi Kota Venkata
+#################################
+
+CC=clang
+CFLAGS=-O3 -I. -Wall
+LDFLAGS=-flto
+
+WASMCC=${WASI_SDK_PATH}/bin/clang --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot/
+WASMCFLAGS=${CFLAGS}
+
+# See https://lld.llvm.org/WebAssembly.html
+WASMLDFLAGS=${LDFLAGS} -Wl,--allow-undefined,-z,stack-size=32768,--threads=1
+
+# Clang 12 WebAssembly Options
+# See https://clang.llvm.org/docs/ClangCommandLineReference.html#webassembly
+# Disable WebAssembly Proposals aWsm does not support
+WASMCFLAGS+= -mno-atomics # https://github.com/WebAssembly/threads
+WASMCFLAGS+= -mno-bulk-memory # https://github.com/WebAssembly/bulk-memory-operations
+WASMCFLAGS+= -mno-exception-handling # https://github.com/WebAssembly/exception-handling
+WASMCFLAGS+= -mno-multivalue # https://github.com/WebAssembly/multi-value
+# Mutable globals still exist, but disables the ability to import mutable globals
+WASMCFLAGS+= -mno-mutable-globals # https://github.com/WebAssembly/mutable-global
+WASMCFLAGS+= -mno-nontrapping-fptoint # https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+WASMCFLAGS+= -mno-reference-types # https://github.com/WebAssembly/reference-types
+WASMCFLAGS+= -mno-sign-ext # https://github.com/WebAssembly/sign-extension-ops
+WASMCFLAGS+= -mno-tail-call # https://github.com/WebAssembly/tail-call
+WASMCFLAGS+= -mno-simd128 # https://github.com/webassembly/simd
+
+WASMLDFLAGS+= -Wl,-z,stack-size=64000 -Wl,--export=malloc -Wl,--export=free
+# WASMLDFLAGS+=-Wl,-z,stack-size=64000
+
+# It is unclear if CPU_FREQ was intentionally left off the wasm build or not
+CFLAGS+= -DSOD_DISABLE_CNN -DLIBCOX_DISABLE_DISK_IO -DCPU_FREQ=3600
+LDFLAGS+= -lm
+
+WASMCFLAGS+= -D_WASI_EMULATED_MMAN -DWASM -DSOD_DISABLE_CNN -DLIBCOX_DISABLE_DISK_IO -DCPU_FREQ=3600
+WASMLDFLAGS+= -lwasi-emulated-mman
+
+# Define MATLAB-PATH with the path to the MATLAB package
+MATLAB_PATH = /pkg/bin/matlab
+ifeq ($(filter matlab-run,$(MAKECMDGOALS)),matlab-run)
+ifneq ($(wildcard $(MATLAB_PATH)),$(MATLAB_PATH))
+$(error Please set the appropriate MATLAB path in MATLAB_PATH variable)
+endif
+endif
+
+ifeq ($(filter mcc-run,$(MAKECMDGOALS)),mcc-run)
+ifneq ($(wildcard $(MATLAB_PATH)),$(MATLAB_PATH))
+$(error Please set the appropriate MATLAB path in MATLAB_PATH variable)
+endif
+endif
+
+CC=gcc
+override CFLAGS += -DGCC -DCHECK -D$(INPUT)
+
+COMMON_DIR := $(TOP_DIR)/common/c
+M_COMMON := $(TOP_DIR)/common/matlab
+M_TOOLBOX=$(TOP_DIR)/common/toolbox
+TIMING_DIR := $(TOP_DIR)/cycles/$(BMARK)
+MTIMING_DIR := $(TOP_DIR)/cycles/$(BMARK)
+BMARK_DIR := $(TOP_DIR)/benchmarks/$(BMARK)
+
+#The options set below and specific to each benchmark. Disparity takes 2 input images, whereas Tracking can take any >1 input images =.
+
+# Variables exported from the benchmark specific Makefiles:
+# BMARK
+# INPUT - sqcif/qcif/cif
+
+# Matlab source, data and result directory
+
+M_DIR=$(BMARK_DIR)/src/matlab
+M_DATA=$(BMARK_DIR)/data/$(INPUT)
+M_RESULT=$(BMARK_DIR)/result
+
+# C source, data and result directory
+
+C_DIR=$(BMARK_DIR)/src/c
+DATA_DIR=$(BMARK_DIR)/data/$(INPUT)
+C_RESULT=$(M_RESULT)
+
+# Source files for C and Common folders
+
+C_SRC := $(wildcard $(C_DIR)/*.c)
+COMMON_SRC := $(wildcard $(COMMON_DIR)/*.c)
+
+# RULES
+
+EXE =
+INCLUDES = -I$(COMMON_DIR) -I$(C_DIR)
+COMPILE_C = $(CC) $(CFLAGS) -lm -O2 $(INCLUDES)
+#COMPILE_C = $(CC) $(CFLAGS) -DGENERATE_OUTPUT -lm -O2 $(INCLUDES)
+COMPILE_G = $(CC) $(CFLAGS) -g -lm $(INCLUDES)
+COMPILE_PG = $(COMPILE_G) -pg
+
+.PHONY: wasm-run
+wasm-run: compile-wasm
+	@echo -e "Running WebAssembly build for $(BMARK)"
+
+compile-wasm: $(C_SRC)
+	@echo
+	@echo -e "Benchmark\t\t- $(BMARK) (WebAssembly)"
+	@$(WASMCC) $(WASMCFLAGS) $(INCLUDES) $(COMMON_SRC) $(C_SRC) -o $(BMARK).wasm $(WASMLDFLAGS)
+
+c-run: compile
+	@echo -e "Data set\t\t- $(INPUT)" 
+
+debug:
+	@echo Running Debug C Version of the benchmark
+	@$(COMPILE_G) $(COMMON_SRC) $(C_SRC) -o $(BMARK)$(EXE)
+	@valgrind --leak-check=full ./$(BMARK)$(EXE) $(DATA_DIR) $(C_RESULT)
+	#@gdb ./$(BMARK)$(EXE) $(DATA_DIR) $(C_RESULT)
+
+profile: compile-prof
+	@echo -e "Data set\t\t- $(INPUT)" 
+	@./$(BMARK)$(EXE) $(DATA_DIR) $(C_RESULT)
+	@gprof $(BMARK)$(EXE)
+	
+
+compile: $(C_SRC)
+	@echo 
+	@echo -e "Benchmark\t\t- $(BMARK)"
+	@$(COMPILE_C) $(COMMON_SRC) $(C_SRC) -o $(BMARK)$(EXE) -lm
+
+compile-prof: $(C_SRC)
+	@echo 
+	@echo -e "Benchmark\t\t- $(BMARK)"
+	@$(COMPILE_PG) $(COMMON_SRC) $(C_SRC) -o $(BMARK)$(EXE) -lm
+
+matlab-run:
+	@echo 
+	@echo -e "Benchmark\t\t- $(BMARK)"
+	@echo -e "Data set\t\t- $(INPUT)" 
+	@cd $(M_DIR); $(MATLAB_PATH) -glnx86 -nosplash -nodisplay -r "script_run_profile('$(M_DATA)', '$(M_RESULT)', '$(INPUT)', '$(M_COMMON)', '$(M_TOOLBOX)'); quit" | tee $(MTIMING_DIR)/Matlab_$(INPUT).txt
+
+mcc-run:
+	@echo Generating a C standalone application
+	cd $(M_DIR); $(MATLAB_PATH) -nosplash -nodesktop -r "mcc -m -v script_run_profile -d $(M_RESULT); quit"
+	
+all: c-run matlab-run mcc-run
+
+clean:
+	@-rm $(BMARK)
+
+
+
+
