@@ -22,12 +22,12 @@ int main(int argc, char* argv[])
 
     im = readImage(NULL);
     
-    printf("Input size\t\t- (%dx%d)\n", im->height, im->width);
+    //printf("Input size\t\t- (%dx%d)\n", im->height, im->width);
 
-    start = photonStartTiming();
+    //start = photonStartTiming();
     seg = segment_image(im, sigma, k, min_size, num_ccs);
-    endC = photonEndTiming();
-    elapsed = photonReportTiming(start, endC);
+    //endC = photonEndTiming();
+    //elapsed = photonReportTiming(start, endC);
     out = seg;
 
 #ifdef CHECK   
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
         float tol = 0;
         
 #ifdef GENERATE_OUTPUT
-        writeMatrix(out, argv[1]);
+        writeMatrix(out, NULL);
 #endif
  
     //ret = selfCheck(out, argv[1], tol);
@@ -46,12 +46,12 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    photonPrintTiming(elapsed);
+    //photonPrintTiming(elapsed);
   
     iFreeHandle(im); 
-    free(start);
-    free(endC);
-    free(elapsed);
+    //free(start);
+    //free(endC);
+    //free(elapsed);
     iFreeHandle(seg);
     
     return 0;
