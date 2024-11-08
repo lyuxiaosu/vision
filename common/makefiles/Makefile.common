@@ -31,10 +31,9 @@ WASMLDFLAGS+= -Wl,-z,stack-size=64000 -Wl,--export=malloc -Wl,--export=free
 # WASMLDFLAGS+=-Wl,-z,stack-size=64000
 
 # It is unclear if CPU_FREQ was intentionally left off the wasm build or not
-CFLAGS+= -DSOD_DISABLE_CNN -DLIBCOX_DISABLE_DISK_IO -DCPU_FREQ=3600
 LDFLAGS+= -lm
 
-WASMCFLAGS+= -D_WASI_EMULATED_MMAN -DWASM -DSOD_DISABLE_CNN -DLIBCOX_DISABLE_DISK_IO -DCPU_FREQ=3600
+WASMCFLAGS+= -D_WASI_EMULATED_MMAN -DWASM 
 WASMLDFLAGS+= -lwasi-emulated-mman
 
 # Define MATLAB-PATH with the path to the MATLAB package
