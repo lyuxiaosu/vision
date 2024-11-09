@@ -9,6 +9,8 @@ Author: Sravanthi Kota Venkata
 #include <stdlib.h>
 #include <math.h>
 
+#define MAX_IMG_SZ (1024*1024) //1MB
+
 typedef struct
 {
     int width;
@@ -30,6 +32,11 @@ typedef struct
     float data[];
 }F2D;
 
+typedef struct {
+    size_t offset;
+    size_t length;
+} ImageInfo;
+
 #define subsref(a,i,j) a->data[(i) * a->width + (j)]
 #define asubsref(a,i) a->data[i]
 #define arrayref(a,i) a[i]
@@ -37,7 +44,8 @@ typedef struct
 /** Image read and write **/
 I2D* readImage(const char* pathName);;
 F2D* readFile(unsigned char* fileName);
-
+I2D* readImage_from_buf(const unsigned char *zInpbuf, const size_t buf_len);
+int read_next_image(const unsigned char* inbuf, size_t buf_size, size_t* current_offset, ImageInfo* img_info);
 
 /** Memory allocation functions **/
 I2D* iMallocHandle(int rows, int cols);

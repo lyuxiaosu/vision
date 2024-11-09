@@ -14,7 +14,7 @@ Author: Sravanthi Kota Venkata
 unsigned int * photonEndTiming()
 {
 	/*unsigned int *array;
-    array = (unsigned int*)malloc(sizeof(unsigned int)*2);
+        array = (unsigned int*)malloc(sizeof(unsigned int)*2);
 
 	magic_timing_begin(array[0], array[1]);
 	return array;

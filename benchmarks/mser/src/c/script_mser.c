@@ -28,12 +28,6 @@ int main(int argc, char* argv[])
     rows = I->height;
     cols = I->width;
 
-    printf("height %d width %d\n", rows, cols);
-    for(i=0; i<cols * rows; i++) {
-        printf("%d ", I->data[i]);
-    }
-    printf("\n");
-
     It = iMallocHandle(I->height, I->width);
     
     if (It == NULL) {
@@ -41,8 +35,6 @@ int main(int argc, char* argv[])
 	return -1;
     }
 
-    printf("It height %d width %d\n", It->height, It->width);
-    
     k = 0;
     for(i=0; i<cols; i++)
     {
@@ -52,12 +44,12 @@ int main(int argc, char* argv[])
         }
     }
    
-    start = photonStartTiming();
+    //start = photonStartTiming();
     idx = mser(It, 2);
-    endC = photonEndTiming();
-    elapsed = photonReportTiming(start, endC);
+    //endC = photonEndTiming();
+    //elapsed = photonReportTiming(start, endC);
 
-    printf("Input size\t\t- (%dx%d)\n", rows, cols);
+    //printf("Input size\t\t- (%dx%d)\n", rows, cols);
 #ifdef CHECK   
     /** Self checking - use expected.txt from data directory  **/
     {
@@ -69,11 +61,11 @@ int main(int argc, char* argv[])
     }
     /** Self checking done **/
 #endif    
-    photonPrintTiming(elapsed);
+    //photonPrintTiming(elapsed);
    
-    free(start); 
-    free(endC); 
-    free(elapsed); 
+    //free(start); 
+    //free(endC); 
+    //free(elapsed); 
     iFreeHandle(idx);
     iFreeHandle(I);
     iFreeHandle(It);

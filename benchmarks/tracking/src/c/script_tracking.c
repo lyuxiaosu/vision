@@ -4,6 +4,8 @@ Author: Sravanthi Kota Venkata
 
 #include "tracking.h"
 
+#define GENERATE_OUTPUT 1
+
 int main(int argc, char* argv[])
 {
     int i, j, k, N_FEA, WINSZ, LK_ITER, rows, cols;
@@ -24,14 +26,6 @@ int main(int argc, char* argv[])
     float accuracy = 0.03;
     int count;
     
-    if(argc < 2) 
-    {
-        printf("We need input image path\n");
-        return -1;
-    }
-
-    sprintf(im1, "%s/1.bmp", argv[1]);
-
     N_FEA = 1600;
     WINSZ = 4;
     SUPPRESION_RADIUS = 10.0;
@@ -93,15 +87,52 @@ int main(int argc, char* argv[])
         counter = 4;
     #endif
 
+    unsigned char *inbuf = malloc(MAX_IMG_SZ);
+    if (!inbuf) return -1;
+
+    size_t imgsSz = read(0, inbuf, MAX_IMG_SZ);
+    if (imgsSz <= 0) return -1;
+
+
+    //-----------------------add---------------------------
+    /*FILE *file = fopen(argv[1], "rb");
+    if (file == NULL) {
+        perror("open file failed\n");
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    size_t imgsSz = fread(inbuf, 1, size, file);
+    if (imgsSz != size) {
+        perror("read file failed\n");
+        free(inbuf);
+        fclose(file);
+        return -1;
+    }
+
+    fclose(file);*/
+    //-----------------------end---------------------------
+
+    size_t current_offset = 0;
+    ImageInfo img_info;
+    int image_index = 1;
+    int ret = read_next_image(inbuf, imgsSz, &current_offset, &img_info);
+    if (ret != 0) {
+	printf("image size is 0\n");
+        return -1;
+    }
+
     /** Read input image **/
-    Ic = readImage(im1);
+    Ic = readImage_from_buf(inbuf + img_info.offset, img_info.length);
     rows = Ic->height;
     cols = Ic->width;
     
-    printf("Input size\t\t- (%dx%d)\n", rows, cols);
+    //printf("Input size\t\t- (%dx%d)\n", rows, cols);
     
     /** Start Timing **/
-    start = photonStartTiming();
+    //start = photonStartTiming();
 
     
     /** IMAGE PRE-PROCESSING **/
@@ -144,8 +175,8 @@ int main(int argc, char* argv[])
 		}
     } 
      
-    end = photonEndTiming();
-    elapsed = photonReportTiming(start, end);
+    //end = photonEndTiming();
+    //elapsed = photonReportTiming(start, end);
 
     fFreeHandle(verticalEdgeImage);
     fFreeHandle(horizontalEdgeImage);
@@ -153,20 +184,24 @@ int main(int argc, char* argv[])
     fFreeHandle(lambda);
     fFreeHandle(lambdaTemp);
     iFreeHandle(Ic);
-    free(start);
-    free(end);
+    //free(start);
+    //free(end);
 
 /** Until now, we processed base frame. The following for loop processes other frames **/
 for(count=1; count<=counter; count++)
 {
-    /** Read image **/
-    sprintf(im1, "%s/%d.bmp", argv[1], count);
-    Ic = readImage(im1);
+    ret = read_next_image(inbuf, imgsSz, &current_offset, &img_info);
+    if (ret != 0) {
+        printf("Not containining enought images\n");
+	return -1;
+    }
+    //printf("image offset %u  and length= %u\n", img_info.offset, img_info.length);
+    Ic = (I2D*)(void*)readImage_from_buf(inbuf + img_info.offset, img_info.length);
     rows = Ic->height;
     cols = Ic->width;
     
     /* Start timing */
-    start = photonStartTiming();
+    //start = photonStartTiming();
 
     /** Blur image to remove noise **/
     blurredImage = imageBlur(Ic);
@@ -232,14 +267,14 @@ for(count=1; count<=counter; count++)
     fFreeHandle(newpoints);
     
     /* Timing utils */
-    end = photonEndTiming();
-    elt = photonReportTiming(start, end);
-    elapsed[0] += elt[0];
-    elapsed[1] += elt[1];
+    //end = photonEndTiming();
+    //elt = photonReportTiming(start, end);
+    //elapsed[0] += elt[0];
+    //elapsed[1] += elt[1];
     
-    free(start);
-    free(elt);
-    free(end);   
+    //free(start);
+    //free(elt);
+    //free(end);   
 }
 
 #ifdef CHECK   
@@ -248,21 +283,22 @@ for(count=1; count<=counter; count++)
         int ret=0;
         float tol = 2.0;
 #ifdef GENERATE_OUTPUT
-        fWriteMatrix(features, argv[1]);
+        fWriteMatrix(features, NULL);
 #endif
-        ret = fSelfCheck(features, argv[1], tol); 
+        /*ret = fSelfCheck(features, argv[1], tol); 
         if (ret == -1)
             printf("Error in Tracking Map\n");
+	*/
     }
 #endif
     
-    photonPrintTiming(elapsed);
+    //photonPrintTiming(elapsed);
 
     fFreeHandle(blurred_level1);
     fFreeHandle(blurred_level2);
     fFreeHandle(features);
 
-    free(elapsed);
+    //free(elapsed);
 
     return 0;
 
