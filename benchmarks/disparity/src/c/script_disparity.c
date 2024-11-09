@@ -6,6 +6,7 @@ Author: Sravanthi Kota Venkata
 #include <stdlib.h>
 #include "disparity.h"
 
+#define GENERATE_OUTPUT 1
 int main(int argc, char* argv[])
 {
     int rows = 32;
@@ -19,17 +20,31 @@ int main(int argc, char* argv[])
     int WIN_SZ=8, SHIFT=64;
     FILE* fp;
     
-    if(argc < 2)
-    {
-        printf("We need input image path and output path\n");
+    unsigned char *inbuf = malloc(MAX_IMG_SZ);
+    if (!inbuf) return -1;
+
+    size_t imgsSz = read(0, inbuf, MAX_IMG_SZ);
+    if (imgsSz <= 0) return -1;
+
+    size_t current_offset = 0;
+    ImageInfo img_info;
+    int image_index = 1;
+    int ret = read_next_image(inbuf, imgsSz, &current_offset, &img_info);
+    if (ret != 0) {
+        printf("image size is 0\n");
         return -1;
     }
 
-    sprintf(im1, "%s/1.bmp", argv[1]);
-    sprintf(im2, "%s/2.bmp", argv[1]);
+    /** Read input image **/
+    imleft = readImage_from_buf(inbuf + img_info.offset, img_info.length);
     
-    imleft = readImage(im1);
-    imright = readImage(im2);
+    ret = read_next_image(inbuf, imgsSz, &current_offset, &img_info);
+    if (ret != 0) {
+        printf("No right image\n");
+        return -1;
+    }
+
+    imright = readImage_from_buf(inbuf + img_info.offset, img_info.length);
 
     rows = imleft->height;
     cols = imleft->width;
@@ -47,35 +62,35 @@ int main(int argc, char* argv[])
     SHIFT = 8;
 #endif
 
-    start = photonStartTiming();
+    //start = photonStartTiming();
     retDisparity = getDisparity(imleft, imright, WIN_SZ, SHIFT);
-    endC = photonEndTiming();
+    //endC = photonEndTiming();
 
-    printf("Input size\t\t- (%dx%d)\n", rows, cols);
+    //printf("Input size\t\t- (%dx%d)\n", rows, cols);
 #ifdef CHECK   
     /** Self checking - use expected.txt from data directory  **/
     {
         int tol, ret=0;
         tol = 2;
 #ifdef GENERATE_OUTPUT
-        writeMatrix(retDisparity, argv[1]);
+        writeMatrix(retDisparity, NULL);
 #endif
-        ret = selfCheck(retDisparity, argv[1], tol);
-        if (ret == -1)
-            printf("Error in Disparity Map\n");
+        //ret = selfCheck(retDisparity, argv[1], tol);
+        //if (ret == -1)
+        //    printf("Error in Disparity Map\n");
     }
     /** Self checking done **/
 #endif
 
-    elapsed = photonReportTiming(start, endC);
-    photonPrintTiming(elapsed);
+    //elapsed = photonReportTiming(start, endC);
+    //photonPrintTiming(elapsed);
     
     iFreeHandle(imleft);
     iFreeHandle(imright);
     iFreeHandle(retDisparity);
-    free(start);
-    free(endC);
-    free(elapsed);
+    //free(start);
+    //free(endC);
+    //free(elapsed);
 
     return 0;
 }
